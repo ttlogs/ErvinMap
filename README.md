@@ -25,17 +25,17 @@ Then visit http://localhost:3000
 
 ```
 ErvinMap/
-├── index.html          # Main map viewer (OpenSeadragon)
-├── Parfaron.png        # Source map image (8192x4096)
-├── parfaron_tiles/    # Deep Zoom tiles (5 zoom levels)
-├── parfaron_tiles.dzi # Tile configuration file
-├── pois.json          # Points of Interest data
-└── scripts/           # Map processing tools
-    ├── README.md      # Script documentation
-    ├── detect_text.py # Detect text regions on map
-    ├── remove_text.py # Remove text via inpainting
-    ├── generate_tiles.py # Create DZI tiles
-    └── extract_text.py   # OCR text extraction
+├── index.html              # Main map viewer (OpenSeadragon)
+├── Parfaron.png            # Source map image (8192x4096)
+├── parfaron_tiles.dzi      # Tile configuration file
+├── parfaron_tiles_files/   # Deep Zoom tiles (5 zoom levels)
+├── pois.json               # Points of Interest data
+└── scripts/                # Map processing tools
+    ├── README.md           # Script documentation
+    ├── detect_text.py      # Detect text regions on map
+    ├── remove_text.py      # Remove text via inpainting
+    ├── generate_tiles.py   # Create DZI tiles
+    └── extract_text.py     # OCR text extraction
 ```
 
 ## Deployment to GitHub Pages
@@ -56,7 +56,7 @@ Your map will be live at `https://yourusername.github.io/repo-name/`
 
 ## Technical Details
 
-- **Viewer**: OpenSeadragon 4.1
+- **Viewer**: OpenSeadragon 5.0
 - **Tile Format**: Deep Zoom (DZI)
 - **Image Size**: 8192x4096 pixels
 - **Zoom Levels**: 5 (512px to 8192px)
