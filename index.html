@@ -264,12 +264,15 @@
         <span id="coords">X: 0, Y: 0</span>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/5.0.1/openseadragon.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
     <script>
         const viewer = OpenSeadragon({
             id: "openseadragon-viewer",
-            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/5.0.1/images/",
-            tileSources: 'parfaron_tiles.dzi',
+            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+            tileSources: {
+                type: 'image',
+                url:  'Parfaron.png'
+            },
             animationTime: 0.5,
             blendTime: 0.1,
             constrainDuringPan: true,
@@ -345,24 +348,21 @@
             if (!image) return;
             
             const viewport = viewer.viewport;
+            const canvas = document.querySelector('#openseadragon-viewer canvas');
+            if (!canvas) return;
+            
+            const canvasRect = canvas.getBoundingClientRect();
             
             pois.forEach((poi, index) => {
                 const marker = document.getElementById(`poi-${index}`);
-                const tooltip = marker?.nextElementSibling;
+                const tooltip = marker && marker.nextElementSibling;
                 if (!marker) return;
                 
                 const point = new OpenSeadragon.Point(poi.x, poi.y);
-                const pixel = viewport.imageToViewportCoordinates(point);
-                const screen = viewport.viewerElementToViewportCoordinates(
-                    viewer.element.getBoundingClientRect()
-                );
+                const pixel = viewport.imageToViewerCoordinates(point);
                 
-                const canvas = document.querySelector('#openseadragon-viewer canvas');
-                if (!canvas) return;
-                
-                const canvasRect = canvas.getBoundingClientRect();
-                const relX = (pixel.x / screen.width) * canvasRect.width;
-                const relY = (pixel.y / screen.height) * canvasRect.height;
+                const relX = (pixel.x / viewport._containerInnerSize.x) * canvasRect.width;
+                const relY = (pixel.y / viewport._containerInnerSize.y) * canvasRect.height;
                 
                 marker.style.left = relX + 'px';
                 marker.style.top = relY + 'px';
@@ -371,7 +371,6 @@
                 if (tooltip) {
                     tooltip.style.left = relX + 'px';
                     tooltip.style.top = relY + 'px';
-                    tooltip.style.display = marker.matches(':hover') ? 'block' : (poisVisible ? 'none' : 'none');
                 }
             });
         }
