@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parfaron - Interactive World Map</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Cinzel', 'Georgia', serif;
+            background: #0a0a0f;
+            color: #d4af37;
+            overflow: hidden;
+        }
+        
+        #map-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        #openseadragon-viewer {
+            width: 100%;
+            height: 100%;
+            background: #1a1a24;
+        }
+        
+        .title-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(180deg, rgba(10,10,15,0.95) 0%, rgba(10,10,15,0) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .title-bar h1 {
+            font-size: 24px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #d4af37;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+            pointer-events: auto;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+        }
+        
+        .controls button {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: #d4af37;
+            padding: 8px 16px;
+            font-family: inherit;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+        
+        .controls button:hover {
+            background: rgba(212, 175, 55, 0.25);
+            border-color: #d4af37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+        
+        .poi-marker {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: radial-gradient(circle, #ffd700 0%, #d4af37 70%, transparent 100%);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 100;
+            transition: transform 0.2s ease;
+            animation: pulse 2s infinite;
+        }
+        
+        .poi-marker:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            animation: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 5px #d4af37; }
+            50% { box-shadow: 0 0 20px #d4af37; }
+        }
+        
+        .poi-tooltip {
+            position: absolute;
+            background: rgba(10, 10, 15, 0.95);
+            border: 1px solid #d4af37;
+            color: #d4af37;
+            padding: 8px 12px;
+            font-size: 14px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 101;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+        }
+        
+        .poi-marker:hover + .poi-tooltip,
+        .poi-tooltip:hover {
+            opacity: 1;
+        }
+        
+        .poi-list {
+            position: fixed;
+            top: 60px;
+            right: 10px;
+            width: 220px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            background: rgba(10, 10, 15, 0.9);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            z-index: 1000;
+            padding: 10px;
+        }
+        
+        .poi-list h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        }
+        
+        .poi-list-item {
+            padding: 5px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .poi-list-item:hover {
+            background: rgba(212, 175, 55, 0.2);
+        }
+        
+        .zoom-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 10, 15, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 10px 15px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            z-index: 1000;
+        }
+        
+        .coordinates {
+            position: fixed;
+            bottom: 20px;
+            right: 240px;
+            background: rgba(10, 10, 15, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 10px 15px;
+            font-size: 12px;
+            letter-spacing: 1px;
+            z-index: 1000;
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-screen h2 {
+            font-size: 32px;
+            letter-spacing: 8px;
+            margin-bottom: 30px;
+            color: #d4af37;
+        }
+        
+        .loading-bar {
+            width: 300px;
+            height: 4px;
+            background: rgba(212, 175, 55, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-bar::after {
+            content: '';
+            position: absolute;
+            left: -50%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, #d4af37, transparent);
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { left: -50%; }
+            100% { left: 100%; }
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loading">
+        <h2>PARFARON</h2>
+        <div class="loading-bar"></div>
+    </div>
+    
+    <div class="title-bar">
+        <h1>Parfaron</h1>
+        <div class="controls">
+            <button id="btn-zoom-in">+ Zoom In</button>
+            <button id="btn-zoom-out">- Zoom Out</button>
+            <button id="btn-home">Reset View</button>
+            <button id="btn-fullscreen">Fullscreen</button>
+            <button id="btn-pois">Show POIs</button>
+        </div>
+    </div>
+    
+    <div id="map-container">
+        <div id="openseadragon-viewer"></div>
+    </div>
+    
+    <div class="poi-list" id="poi-list" style="display: none;">
+        <h3>Points of Interest</h3>
+        <div id="poi-items"></div>
+    </div>
+    
+    <div class="zoom-indicator">
+        Zoom: <span id="zoom-level">1.0</span>x
+    </div>
+    
+    <div class="coordinates">
+        <span id="coords">X: 0, Y: 0</span>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
+    <script>
+        const viewer = OpenSeadragon({
+            id: "openseadragon-viewer",
+            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
+            tileSources: 'parfaron_tiles.dzi',
+            animationTime: 0.5,
+            blendTime: 0.1,
+            constrainDuringPan: true,
+            defaultZoomLevel: 0,
+            minZoomLevel: 0.1,
+            maxZoomLevel: 10,
+            visibilityRatio: 1.0,
+            zoomPerScroll: 1.2,
+            showNavigator: true,
+            navigatorPosition: "BOTTOM_RIGHT",
+            navigatorSizeRatio: 0.15,
+            navigatorMaintainSizeRatio: true,
+            navigatorBackground: '#1a1a24',
+            navigatorBorderColor: '#d4af37',
+            showNavigationControl: true,
+            navigationControlAnchor: 'BOTTOM_RIGHT',
+            showSequenceControl: false,
+        });
+
+        let pois = [];
+        let poisVisible = false;
+        const mapContainer = document.getElementById('map-container');
+
+        async function loadPOIs() {
+            try {
+                const response = await fetch('pois.json');
+                pois = await response.json();
+                console.log(`Loaded ${pois.length} POIs`);
+            } catch (e) {
+                console.log('No POI file found');
+            }
+        }
+
+        function createPOIMarkers() {
+            const poiItems = document.getElementById('poi-items');
+            poiItems.innerHTML = '';
+            
+            pois.forEach((poi, index) => {
+                const marker = document.createElement('div');
+                marker.className = 'poi-marker';
+                marker.id = `poi-${index}`;
+                marker.style.display = 'none';
+                
+                const tooltip = document.createElement('div');
+                tooltip.className = 'poi-tooltip';
+                tooltip.textContent = poi.name;
+                tooltip.style.display = 'none';
+                
+                marker.addEventListener('mouseenter', () => {
+                    tooltip.style.display = 'block';
+                });
+                marker.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+                
+                mapContainer.appendChild(marker);
+                mapContainer.appendChild(tooltip);
+                
+                const listItem = document.createElement('div');
+                listItem.className = 'poi-list-item';
+                listItem.textContent = poi.name;
+                listItem.addEventListener('click', () => {
+                    zoomToPOI(poi);
+                });
+                poiItems.appendChild(listItem);
+            });
+        }
+
+        function updatePOIPositions() {
+            if (!pois.length) return;
+            
+            const image = viewer.world.getItemAt(0);
+            if (!image) return;
+            
+            const viewport = viewer.viewport;
+            
+            pois.forEach((poi, index) => {
+                const marker = document.getElementById(`poi-${index}`);
+                const tooltip = marker?.nextElementSibling;
+                if (!marker) return;
+                
+                const point = new OpenSeadragon.Point(poi.x, poi.y);
+                const pixel = viewport.imageToViewportCoordinates(point);
+                const screen = viewport.viewerElementToViewportCoordinates(
+                    viewer.element.getBoundingClientRect()
+                );
+                
+                const canvas = document.querySelector('#openseadragon-viewer canvas');
+                if (!canvas) return;
+                
+                const canvasRect = canvas.getBoundingClientRect();
+                const relX = (pixel.x / screen.width) * canvasRect.width;
+                const relY = (pixel.y / screen.height) * canvasRect.height;
+                
+                marker.style.left = relX + 'px';
+                marker.style.top = relY + 'px';
+                marker.style.display = poisVisible ? 'block' : 'none';
+                
+                if (tooltip) {
+                    tooltip.style.left = relX + 'px';
+                    tooltip.style.top = relY + 'px';
+                    tooltip.style.display = marker.matches(':hover') ? 'block' : (poisVisible ? 'none' : 'none');
+                }
+            });
+        }
+
+        function zoomToPOI(poi) {
+            const point = new OpenSeadragon.Point(poi.x, poi.y);
+            viewer.viewport.animate({
+                center: point,
+                zoom: 4,
+                duration: 0.5
+            });
+        }
+
+        viewer.addHandler('open', async function() {
+            document.getElementById('loading').classList.add('hidden');
+            await loadPOIs();
+            createPOIMarkers();
+            updatePOIPositions();
+        });
+
+        viewer.addHandler('animation', updatePOIPositions);
+        viewer.addHandler('open', updatePOIPositions);
+        viewer.addHandler('resize', updatePOIPositions);
+
+        viewer.addHandler('zoom', function(event) {
+            const zoom = viewer.viewport.getZoom();
+            document.getElementById('zoom-level').textContent = zoom.toFixed(2);
+        });
+
+        viewer.addHandler('pan', function(event) {
+            const center = viewer.viewport.getCenter();
+            document.getElementById('coords').textContent = 
+                `X: ${Math.round(center.x)}, Y: ${Math.round(center.y)}`;
+        });
+
+        document.getElementById('btn-zoom-in').addEventListener('click', function() {
+            viewer.viewport.zoomBy(1.5);
+        });
+
+        document.getElementById('btn-zoom-out').addEventListener('click', function() {
+            viewer.viewport.zoomBy(0.67);
+        });
+
+        document.getElementById('btn-home').addEventListener('click', function() {
+            viewer.viewport.goHome();
+        });
+
+        document.getElementById('btn-fullscreen').addEventListener('click', function() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        });
+
+        document.getElementById('btn-pois').addEventListener('click', function() {
+            poisVisible = !poisVisible;
+            document.getElementById('poi-list').style.display = poisVisible ? 'block' : 'none';
+            document.getElementById('btn-pois').style.background = poisVisible ? 'rgba(212, 175, 55, 0.3)' : '';
+            updatePOIPositions();
+        });
+    </script>
+</body>
+</html>
