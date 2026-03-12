@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Image TileSize="512" Overlap="1" Format="png" xmlns="http://schemas.microsoft.com/deepzoom/2008">
     <Size Width="8192" Height="4096"/>
-    <I TileSource="parfaron_tiles"/>
 </Image>
