@@ -3,13 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parfaron - Interactive World Map</title>
+    <title>Parfaron - Layered World Map</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         
         body {
             font-family: 'Cinzel', 'Georgia', serif;
@@ -18,16 +14,32 @@
             overflow: hidden;
         }
         
-        #map-container {
+        #viewer {
             width: 100vw;
             height: 100vh;
             position: relative;
+            background: #0a0a0f;
+            overflow: hidden;
+            cursor: grab;
         }
         
-        #openseadragon-viewer {
-            width: 100%;
-            height: 100%;
-            background: #1a1a24;
+        #map-layers {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+        }
+        
+        .layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            image-rendering: pixelated;
+        }
+        
+        .layer.interactive {
+            pointer-events: auto;
         }
         
         .title-bar {
@@ -56,7 +68,7 @@
         
         .controls {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             pointer-events: auto;
         }
         
@@ -64,7 +76,7 @@
             background: rgba(212, 175, 55, 0.1);
             border: 1px solid rgba(212, 175, 55, 0.3);
             color: #d4af37;
-            padding: 8px 16px;
+            padding: 8px 14px;
             font-family: inherit;
             font-size: 12px;
             cursor: pointer;
@@ -72,88 +84,44 @@
             letter-spacing: 1px;
         }
         
-        .controls button:hover {
+        .controls button:hover,
+        .controls button.active {
             background: rgba(212, 175, 55, 0.25);
             border-color: #d4af37;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
         }
         
-        .poi-marker {
-            position: absolute;
-            width: 24px;
-            height: 24px;
-            background: radial-gradient(circle, #ffd700 0%, #d4af37 70%, transparent 100%);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            cursor: pointer;
-            z-index: 100;
-            transition: transform 0.2s ease;
-            animation: pulse 2s infinite;
-        }
-        
-        .poi-marker:hover {
-            transform: translate(-50%, -50%) scale(1.5);
-            animation: none;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 5px #d4af37; }
-            50% { box-shadow: 0 0 20px #d4af37; }
-        }
-        
-        .poi-tooltip {
-            position: absolute;
-            background: rgba(10, 10, 15, 0.95);
-            border: 1px solid #d4af37;
-            color: #d4af37;
-            padding: 8px 12px;
-            font-size: 14px;
-            white-space: nowrap;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            z-index: 101;
-            transform: translate(-50%, -100%);
-            margin-top: -10px;
-        }
-        
-        .poi-marker:hover + .poi-tooltip,
-        .poi-tooltip:hover {
-            opacity: 1;
-        }
-        
-        .poi-list {
+        .layer-panel {
             position: fixed;
             top: 60px;
             right: 10px;
-            width: 220px;
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
             background: rgba(10, 10, 15, 0.9);
             border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 12px;
             z-index: 1000;
-            padding: 10px;
+            min-width: 180px;
         }
         
-        .poi-list h3 {
-            font-size: 14px;
+        .layer-panel h3 {
+            font-size: 12px;
             margin-bottom: 10px;
-            padding-bottom: 5px;
+            padding-bottom: 8px;
             border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         }
         
-        .poi-list-item {
-            padding: 5px 8px;
+        .layer-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
             font-size: 12px;
             cursor: pointer;
-            transition: background 0.2s;
         }
         
-        .poi-list-item:hover {
-            background: rgba(212, 175, 55, 0.2);
+        .layer-toggle input {
+            accent-color: #d4af37;
         }
         
-        .zoom-indicator {
+        .zoom-info {
             position: fixed;
             bottom: 20px;
             left: 20px;
@@ -161,253 +129,193 @@
             border: 1px solid rgba(212, 175, 55, 0.3);
             padding: 10px 15px;
             font-size: 12px;
-            letter-spacing: 1px;
             z-index: 1000;
         }
         
-        .coordinates {
+        .coords {
             position: fixed;
             bottom: 20px;
-            right: 240px;
+            right: 20px;
             background: rgba(10, 10, 15, 0.8);
             border: 1px solid rgba(212, 175, 55, 0.3);
             padding: 10px 15px;
             font-size: 12px;
-            letter-spacing: 1px;
             z-index: 1000;
-        }
-        
-        .loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #0a0a0f;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            transition: opacity 0.5s ease;
-        }
-        
-        .loading-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .loading-screen h2 {
-            font-size: 32px;
-            letter-spacing: 8px;
-            margin-bottom: 30px;
-            color: #d4af37;
-        }
-        
-        .loading-bar {
-            width: 300px;
-            height: 4px;
-            background: rgba(212, 175, 55, 0.2);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .loading-bar::after {
-            content: '';
-            position: absolute;
-            left: -50%;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, #d4af37, transparent);
-            animation: loading 1.5s infinite;
-        }
-        
-        @keyframes loading {
-            0% { left: -50%; }
-            100% { left: 100%; }
         }
         
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
     </style>
 </head>
 <body>
-    <div class="loading-screen" id="loading">
-        <h2>PARFARON</h2>
-        <div class="loading-bar"></div>
-    </div>
-    
     <div class="title-bar">
         <h1>Parfaron</h1>
         <div class="controls">
-            <button id="btn-zoom-in">+ Zoom In</button>
-            <button id="btn-zoom-out">- Zoom Out</button>
-            <button id="btn-home">Reset View</button>
-            <button id="btn-fullscreen">Fullscreen</button>
-            <button id="btn-pois">Show POIs</button>
+            <button id="btn-zoom-in">+</button>
+            <button id="btn-zoom-out">−</button>
+            <button id="btn-reset">Reset</button>
+            <button id="btn-fullscreen">⛶</button>
         </div>
     </div>
     
-    <div id="map-container">
-        <div id="openseadragon-viewer"></div>
+    <div class="layer-panel">
+        <h3>Layers</h3>
+        <label class="layer-toggle">
+            <input type="checkbox" id="layer-terrain" checked>
+            <span>🗻 Terrain</span>
+        </label>
+        <label class="layer-toggle">
+            <input type="checkbox" id="layer-labels">
+            <span>📛 Labels</span>
+        </label>
+        <label class="layer-toggle">
+            <input type="checkbox" id="layer-roads">
+            <span>🛤️ Roads</span>
+        </label>
+        <label class="layer-toggle">
+            <input type="checkbox" id="layer-pois" checked>
+            <span>📍 Points</span>
+        </label>
     </div>
     
-    <div class="poi-list" id="poi-list" style="display: none;">
-        <h3>Points of Interest</h3>
-        <div id="poi-items"></div>
+    <div id="viewer">
+        <div id="map-layers">
+        </div>
     </div>
     
-    <div class="zoom-indicator">
+    <div class="zoom-info">
         Zoom: <span id="zoom-level">1.0</span>x
     </div>
     
-    <div class="coordinates">
+    <div class="coords">
         <span id="coords">X: 0, Y: 0</span>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/openseadragon.min.js"></script>
     <script>
-        const viewer = OpenSeadragon({
-            id: "openseadragon-viewer",
-            prefixUrl: "https://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/",
-            tileSources: {
-                type: 'image',
-                url:  'Parfaron.png'
-            },
-            animationTime: 0.5,
-            blendTime: 0.1,
-            constrainDuringPan: true,
-            defaultZoomLevel: 0,
-            minZoomLevel: 0.1,
-            maxZoomLevel: 10,
-            visibilityRatio: 1.0,
-            zoomPerScroll: 1.2,
-            showNavigator: true,
-            navigatorPosition: "BOTTOM_RIGHT",
-            navigatorSizeRatio: 0.15,
-            navigatorMaintainSizeRatio: true,
-            navigatorBackground: '#1a1a24',
-            navigatorBorderColor: '#d4af37',
-            showNavigationControl: true,
-            navigationControlAnchor: 'BOTTOM_RIGHT',
-            showSequenceControl: false,
-        });
-
-        let pois = [];
-        let poisVisible = false;
-        const mapContainer = document.getElementById('map-container');
-
-        async function loadPOIs() {
-            try {
-                const response = await fetch('pois.json');
-                pois = await response.json();
-                console.log(`Loaded ${pois.length} POIs`);
-            } catch (e) {
-                console.log('No POI file found');
-            }
+        const MAP_WIDTH = 8192;
+        const MAP_HEIGHT = 4096;
+        
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        const viewer = document.getElementById('viewer');
+        const mapLayers = document.getElementById('map-layers');
+        
+        const layers = [
+            { id: 'terrain', name: 'Terrain', src: 'Parfaron.png', zIndex: 1 },
+            { id: 'labels', name: 'Labels', src: 'layers/labels.png', zIndex: 2 },
+            { id: 'roads', name: 'Roads', src: 'layers/roads.png', zIndex: 3 },
+            { id: 'pois', name: 'POIs', src: 'layers/pois.png', zIndex: 4 }
+        ];
+        
+        function init() {
+            fitToScreen();
+            loadLayers();
+            setupEvents();
+            loadState();
         }
-
-        function createPOIMarkers() {
-            const poiItems = document.getElementById('poi-items');
-            poiItems.innerHTML = '';
+        
+        function fitToScreen() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            scale = Math.min(w / MAP_WIDTH, h / MAP_HEIGHT);
+            panX = (w - MAP_WIDTH * scale) / 2;
+            panY = (h - MAP_HEIGHT * scale) / 2;
+            updateTransform();
+        }
+        
+        function loadLayers() {
+            layers.forEach(layer => {
+                const img = document.createElement('img');
+                img.className = 'layer';
+                img.id = layer.id;
+                img.src = layer.src;
+                img.style.zIndex = layer.zIndex;
+                img.onerror = () => { img.style.display = 'none'; };
+                mapLayers.appendChild(img);
+            });
+        }
+        
+        function setupEvents() {
+            viewer.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                viewer.style.cursor = 'grabbing';
+            });
             
-            pois.forEach((poi, index) => {
-                const marker = document.createElement('div');
-                marker.className = 'poi-marker';
-                marker.id = `poi-${index}`;
-                marker.style.display = 'none';
-                
-                const tooltip = document.createElement('div');
-                tooltip.className = 'poi-tooltip';
-                tooltip.textContent = poi.name;
-                tooltip.style.display = 'none';
-                
-                marker.addEventListener('mouseenter', () => {
-                    tooltip.style.display = 'block';
-                });
-                marker.addEventListener('mouseleave', () => {
-                    tooltip.style.display = 'none';
-                });
-                
-                mapContainer.appendChild(marker);
-                mapContainer.appendChild(tooltip);
-                
-                const listItem = document.createElement('div');
-                listItem.className = 'poi-list-item';
-                listItem.textContent = poi.name;
-                listItem.addEventListener('click', () => {
-                    zoomToPOI(poi);
-                });
-                poiItems.appendChild(listItem);
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                panX += e.clientX - lastMouseX;
+                panY += e.clientY - lastMouseY;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                updateTransform();
             });
-        }
-
-        function updatePOIPositions() {
-            if (!pois.length) return;
             
-            pois.forEach((poi, index) => {
-                const marker = document.getElementById(`poi-${index}`);
-                if (!marker) return;
-                marker.style.display = poisVisible ? 'block' : 'none';
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                viewer.style.cursor = 'grab';
+            });
+            
+            viewer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const factor = e.deltaY > 0 ? 0.9 : 1.1;
+                const rect = viewer.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+                const wx = (mx - panX) / scale;
+                const wy = (my - panY) / scale;
+                scale = Math.max(0.1, Math.min(50, scale * factor));
+                panX = mx - wx * scale;
+                panY = my - wy * scale;
+                updateTransform();
+            });
+            
+            document.querySelectorAll('.layer-toggle input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const layer = document.getElementById(e.target.id.replace('layer-', ''));
+                    if (layer) layer.style.display = e.target.checked ? 'block' : 'none';
+                    localStorage.setItem(e.target.id, e.target.checked);
+                });
+            });
+            
+            document.getElementById('btn-zoom-in').onclick = () => { scale *= 1.5; updateTransform(); };
+            document.getElementById('btn-zoom-out').onclick = () => { scale /= 1.5; updateTransform(); };
+            document.getElementById('btn-reset').onclick = fitToScreen;
+            
+            document.getElementById('btn-fullscreen').onclick = () => {
+                document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+            };
+            
+            window.addEventListener('resize', fitToScreen);
+        }
+        
+        function updateTransform() {
+            mapLayers.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            document.getElementById('zoom-level').textContent = scale.toFixed(2);
+            const cx = (window.innerWidth / 2 - panX) / scale;
+            const cy = (window.innerHeight / 2 - panY) / scale;
+            document.getElementById('coords').textContent = `X: ${Math.round(cx)}, Y: ${Math.round(cy)}`;
+        }
+        
+        function loadState() {
+            layers.forEach(l => {
+                const saved = localStorage.getItem(`layer-${l.id}`);
+                if (saved !== null) {
+                    const cb = document.getElementById(`layer-${l.id}`);
+                    const visible = saved === 'true';
+                    cb.checked = visible;
+                    const img = document.getElementById(l.id);
+                    if (img) img.style.display = visible ? 'block' : 'none';
+                }
             });
         }
-
-        function zoomToPOI(poi) {
-            const point = new OpenSeadragon.Point(poi.x, poi.y);
-            viewer.viewport.animate({
-                center: point,
-                zoom: 4,
-                duration: 0.5
-            });
-        }
-
-        viewer.addHandler('open', async function() {
-            document.getElementById('loading').classList.add('hidden');
-            await loadPOIs();
-            createPOIMarkers();
-            updatePOIPositions();
-        });
-
-        viewer.addHandler('animation', updatePOIPositions);
-        viewer.addHandler('open', updatePOIPositions);
-        viewer.addHandler('resize', updatePOIPositions);
-
-        viewer.addHandler('zoom', function(event) {
-            const zoom = viewer.viewport.getZoom();
-            document.getElementById('zoom-level').textContent = zoom.toFixed(2);
-        });
-
-        viewer.addHandler('pan', function(event) {
-            const center = viewer.viewport.getCenter();
-            document.getElementById('coords').textContent = 
-                `X: ${Math.round(center.x)}, Y: ${Math.round(center.y)}`;
-        });
-
-        document.getElementById('btn-zoom-in').addEventListener('click', function() {
-            viewer.viewport.zoomBy(1.5);
-        });
-
-        document.getElementById('btn-zoom-out').addEventListener('click', function() {
-            viewer.viewport.zoomBy(0.67);
-        });
-
-        document.getElementById('btn-home').addEventListener('click', function() {
-            viewer.viewport.goHome();
-        });
-
-        document.getElementById('btn-fullscreen').addEventListener('click', function() {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            } else {
-                document.documentElement.requestFullscreen();
-            }
-        });
-
-        document.getElementById('btn-pois').addEventListener('click', function() {
-            poisVisible = !poisVisible;
-            document.getElementById('poi-list').style.display = poisVisible ? 'block' : 'none';
-            document.getElementById('btn-pois').style.background = poisVisible ? 'rgba(212, 175, 55, 0.3)' : '';
-            updatePOIPositions();
-        });
+        
+        init();
     </script>
 </body>
 </html>

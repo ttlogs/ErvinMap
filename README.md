@@ -1,75 +1,81 @@
-# Parfaron - Interactive Fantasy World Map
+# Parfaron - Interactive Layered World Map
 
-An interactive, zoomable map of the fantasy world built with OpenSeadragon.
+An interactive, zoomable fantasy world map using layered 2D textures.
 
 ## Quick Start
-
-### View the Map
-
-Simply open `index.html` in a web browser, or serve locally:
 
 ```bash
 python3 -m http.server 3000
 ```
 
-Then visit http://localhost:3000
+Visit http://localhost:3000
 
-### Features
+## Features
 
 - **Smooth Pan & Zoom** - Mouse wheel to zoom, click and drag to pan
-- **Minimap** - Overview in bottom-right corner
-- **Points of Interest** - Click "Show POIs" button to display labeled locations
-- **Fullscreen** - Press the fullscreen button for immersive viewing
+- **Layer System** - Toggle terrain, labels, roads, and POIs independently
+- **Infinite Zoom** - Each layer is a full-resolution texture
+- **Layer Persistence** - Your layer preferences are saved locally
+
+## Layer System
+
+The map uses separate texture layers that stack together:
+
+| Layer | File | Description |
+|-------|------|-------------|
+| Terrain | `Parfaron.png` | Base map (mountains, forests, water) |
+| Labels | `layers/labels.png` | Place names (Russian text) |
+| Roads | `layers/roads.png` | Trade routes and paths |
+| POIs | `layers/pois.png` | City markers, dungeons, etc. |
+
+Each layer is a full 8192x4096 PNG with transparency - no pixelation when zoomed in!
+
+## Adding Content to Layers
+
+### Option 1: Direct Image Editing
+1. Open any layer in an image editor (Photoshop, GIMP, etc.)
+2. Edit at full resolution (8192x4096)
+3. Save as PNG (maintain transparency)
+
+### Option 2: Generate from Data
+The `scripts/` folder contains tools to:
+- Detect text regions and create labels layer
+- Draw roads between locations
+- Generate POI markers
 
 ## Project Structure
 
 ```
 ErvinMap/
-├── index.html              # Main map viewer (OpenSeadragon)
-├── Parfaron.png            # Source map image (8192x4096)
-├── parfaron_tiles.dzi      # Tile configuration file
-├── parfaron_tiles_files/   # Deep Zoom tiles (5 zoom levels)
-├── pois.json               # Points of Interest data
-└── scripts/                # Map processing tools
-    ├── README.md           # Script documentation
-    ├── detect_text.py      # Detect text regions on map
-    ├── remove_text.py      # Remove text via inpainting
-    ├── generate_tiles.py   # Create DZI tiles
-    └── extract_text.py     # OCR text extraction
+├── index.html           # Layered map viewer
+├── Parfaron.png        # Base terrain layer (8192x4096)
+├── layers/
+│   ├── labels.png      # Place names (empty - add your labels)
+│   ├── roads.png       # Trade routes (empty - draw roads)
+│   └── pois.png        # Points of interest (empty)
+├── scripts/             # Layer generation tools
+└── README.md
 ```
 
 ## Deployment to GitHub Pages
 
-1. Push to GitHub:
 ```bash
 git add .
-git commit -m "Add interactive fantasy map"
+git commit -m "Add layered map system"
 git push origin main
 ```
 
-2. Go to **Settings → Pages** in your repository:
-   - Source: Deploy from a branch
-   - Branch: `main` / `root`
-   - Click Save
-
-Your map will be live at `https://yourusername.github.io/repo-name/`
-
-## Technical Details
-
-- **Viewer**: OpenSeadragon 5.0
-- **Tile Format**: Deep Zoom (DZI)
-- **Image Size**: 8192x4096 pixels
-- **Zoom Levels**: 5 (512px to 8192px)
-- **Total Tile Size**: ~11MB
+Then enable GitHub Pages in Settings → Pages → Deploy from main branch.
 
 ## Future Enhancements
 
-- AI-generated detailed map (via upscaling services like Magnific AI)
-- Real-time character positions (WebSocket)
-- Interactive roads and routes
-- Custom markers for campaign sessions
+- AI-generated terrain details
+- Animated elements (moving characters)
+- Real-time multiplayer character positions
+- Custom campaign session markers
+- Export/import map state
 
 ## Credits
 
-Map image: Parfaron (fantasy world)
-Viewer: OpenSeadragon
+- Base map: Parfaron fantasy world
+- Built with vanilla JavaScript (no dependencies)
